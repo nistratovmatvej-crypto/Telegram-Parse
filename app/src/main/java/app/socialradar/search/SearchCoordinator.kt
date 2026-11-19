@@ -28,6 +28,7 @@ class SearchCoordinator(
         val maxQueries = request.maxExpansionQueries.coerceIn(1, 100)
         val queue = ArrayDeque<Pair<String, Int>>()
         val visitedQueries = linkedSetOf<String>()
+        val queuedSeeds = linkedSetOf(normalize(request.originalQuery))
         val results = linkedMapOf<String, CommunityCandidate>()
         val usedSources = linkedSetOf<String>()
         var queryCount = 0
@@ -77,7 +78,13 @@ class SearchCoordinator(
 
                         if (depth < maxDepth) {
                             val nextSeed = candidate.title.trim()
-                            if (nextSeed.length >= 3 && normalize(nextSeed) !in visitedQueries) {
+                            val nextKey = normalize(nextSeed)
+                            if (
+                                nextSeed.length >= 3 &&
+                                nextKey !in visitedQueries &&
+                                queuedSeeds.add(nextKey) &&
+                                queue.size < maxQueries * 2
+                            ) {
                                 queue.add(nextSeed to depth + 1)
                             }
                         }
