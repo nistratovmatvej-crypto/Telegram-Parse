@@ -71,7 +71,8 @@ class SearchCoordinator(
                         if (!isAllowedType(candidate.type, request)) continue
                         val key = stableKey(candidate)
                         val scored = candidate.copy(
-                            relevanceScore = relevance(candidate, request.originalQuery)
+                            relevanceScore = relevance(candidate, request.originalQuery),
+                            discoveredBy = candidate.discoveredBy + source.sourceId
                         )
                         val previous = results[key]
                         results[key] = if (previous == null) scored else merge(previous, scored)
