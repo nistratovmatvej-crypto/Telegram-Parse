@@ -14,6 +14,14 @@ import org.drinkless.tdlib.TdApi
 import app.socialradar.search.SearchQueryPlanner
 import app.socialradar.search.SearchRequest
 import java.util.Locale
+import android.util.Base64
+import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyProperties
+import java.security.KeyStore
+import javax.crypto.Cipher
+import javax.crypto.KeyGenerator
+import javax.crypto.SecretKey
+import javax.crypto.spec.GCMParameterSpec
 
 data class RadarChat(val id: Long, val title: String, val type: String, val username: String = "")
 data class RadarAuth(
@@ -30,6 +38,7 @@ data class RadarAuth(
 
 class TelegramSession(private val context: Context) {
     private val prefs = context.getSharedPreferences("telegram_session_config", Context.MODE_PRIVATE)
+    init { migrateLegacyCredentials() }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val planner = SearchQueryPlanner()
     private var client: TdClient? = null
@@ -41,8 +50,22 @@ class TelegramSession(private val context: Context) {
     val busy: StateFlow<Boolean> = _busy
     private val _message = MutableStateFlow("")
     val message: StateFlow<String> = _message
-    val apiId: String get() = prefs.getString("api_id", "") ?: ""
-    val apiHash: String get() = prefs.getString("api_hash", "") ?: ""
+    val apiId: String get() = CredentialVault.decrypt(prefs.getString("api_id_encrypted", null)) ?: (prefs.getString("api_id", "") ?: "")
+    val apiHash: String get() = CredentialVault.decrypt(prefs.getString("api_hash_encrypted", null)) ?: (prefs.getString("api_hash", "") ?: "")
+
+    private fun migrateLegacyCredentials() {
+        val oldId = prefs.getString("api_id", null)
+        val oldHash = prefs.getString("api_hash", null)
+        if (oldId.isNullOrBlank() && oldHash.isNullOrBlank()) return
+        try {
+            val editor = prefs.edit()
+            if (!oldId.isNullOrBlank()) editor.putString("api_id_encrypted", CredentialVault.encrypt(oldId))
+            if (!oldHash.isNullOrBlank()) editor.putString("api_hash_encrypted", CredentialVault.encrypt(oldHash))
+            editor.remove("api_id").remove("api_hash").apply()
+        } catch (_: Exception) {
+            _message.value = "Не удалось защитить API-данные на этом устройстве. Старые ключи не удалены."
+        }
+    }
 
     fun configure(id: String, hash: String) {
         val parsed = id.trim().toIntOrNull()
@@ -51,7 +74,15 @@ class TelegramSession(private val context: Context) {
             _message.value = "API ID должен быть числом, API Hash — 32 символа."
             return
         }
-        prefs.edit().putString("api_id", parsed.toString()).putString("api_hash", cleanedHash).apply()
+        try {
+            prefs.edit()
+                .putString("api_id_encrypted", CredentialVault.encrypt(parsed.toString()))
+                .putString("api_hash_encrypted", CredentialVault.encrypt(cleanedHash))
+                .remove("api_id").remove("api_hash").apply()
+        } catch (e: Exception) {
+            _message.value = "Не удалось сохранить API-данные защищённо: ${e.message ?: "ошибка Keystore"}"
+            return
+        }
         connect()
     }
 
@@ -257,6 +288,54 @@ class TelegramSession(private val context: Context) {
             _auth.value = RadarAuth("Вы вышли из Telegram")
             _results.value = emptyList()
             _message.value = "Сессия Telegram закрыта."
+        }
+    }
+}
+
+
+/** AES-GCM encrypted storage backed by the Android Keystore. */
+private object CredentialVault {
+    private const val KEY_ALIAS = "social-radar-api-credentials"
+    private const val TRANSFORMATION = "AES/GCM/NoPadding"
+    private val lock = Any()
+
+    private fun key(): SecretKey = synchronized(lock) {
+        val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+        (store.getKey(KEY_ALIAS, null) as? SecretKey) ?: run {
+            val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
+            generator.init(
+                KeyGenParameterSpec.Builder(
+                    KEY_ALIAS,
+                    KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+                ).setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                    .setRandomizedEncryptionRequired(true)
+                    .build()
+            )
+            generator.generateKey()
+        }
+    }
+
+    fun encrypt(value: String): String {
+        val cipher = Cipher.getInstance(TRANSFORMATION)
+        cipher.init(Cipher.ENCRYPT_MODE, key())
+        val cipherText = cipher.doFinal(value.toByteArray(Charsets.UTF_8))
+        return Base64.encodeToString(cipher.iv, Base64.NO_WRAP) + "." +
+            Base64.encodeToString(cipherText, Base64.NO_WRAP)
+    }
+
+    fun decrypt(value: String?): String? {
+        if (value.isNullOrBlank()) return null
+        return try {
+            val parts = value.split(".", limit = 2)
+            if (parts.size != 2) return null
+            val iv = Base64.decode(parts[0], Base64.NO_WRAP)
+            val encrypted = Base64.decode(parts[1], Base64.NO_WRAP)
+            val cipher = Cipher.getInstance(TRANSFORMATION)
+            cipher.init(Cipher.DECRYPT_MODE, key(), GCMParameterSpec(128, iv))
+            String(cipher.doFinal(encrypted), Charsets.UTF_8)
+        } catch (_: Exception) {
+            null
         }
     }
 }
