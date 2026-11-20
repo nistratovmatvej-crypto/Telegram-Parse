@@ -292,7 +292,7 @@ private fun SettingsPage(session: TelegramSession, auth: RadarAuth, sessionMessa
     var credentialId by remember { mutableStateOf(session.apiId) }
     var credentialHash by remember { mutableStateOf(session.apiHash) }
     var authInput by remember { mutableStateOf("") }
-    var authDialogShown by remember { mutableStateOf(false) }
+    var authDialogShown by remember { mutableStateOf(false) }\n    var lastAuthDialogState by remember { mutableStateOf("") }
     Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
         Text("CONFIGURATION", color = Accent2, fontSize = 9.sp, letterSpacing = 1.5.sp, fontWeight = FontWeight.Bold)
         Text("Settings", color = TextPrimary, fontSize = 28.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-.7).sp)
@@ -345,7 +345,7 @@ private fun SettingsPage(session: TelegramSession, auth: RadarAuth, sessionMessa
         onDismissRequest = { authDialogShown = false },
         title = { Text(if (auth.phoneRequired) "Номер телефона" else if (auth.codeRequired) "Код Telegram" else "Пароль 2FA") },
         text = { OutlinedTextField(authInput, { authInput = it }, label = { Text(if (auth.phoneRequired) "+номер телефона" else if (auth.codeRequired) "Код из Telegram" else "Пароль") }, singleLine = true) },
-        confirmButton = { TextButton(onClick = { if (auth.phoneRequired) session.submitPhone(authInput) else if (auth.codeRequired) session.submitCode(authInput) else session.submitPassword(authInput); authDialogShown = false }) { Text("Отправить") } },
+        confirmButton = { TextButton(onClick = { if (auth.phoneRequired) session.submitPhone(authInput) else if (auth.codeRequired) session.submitCode(authInput) else session.submitPassword(authInput); authDialogShown = true }) { Text("Отправить") } },
         dismissButton = { TextButton(onClick = { authDialogShown = false }) { Text("Позже") } }
     )
 }
