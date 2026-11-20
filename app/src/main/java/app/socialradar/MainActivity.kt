@@ -136,7 +136,7 @@ private fun Brand() {
 
 @Composable
 private fun NavItem(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector, active: Boolean, action: () -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp).background(if (active) Surface3 else Color.Transparent, RoundedCornerShape(12.dp).takeIf { active } ?: RoundedCornerShape(0.dp)).clickable { action() }.padding(horizontal = 12.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp).background(if (active) Surface3 else Color.Transparent, RoundedCornerShape(12.dp)).clickable { action() }.padding(horizontal = 12.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
         Icon(icon, null, tint = if (active) Accent else TextSecondary, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(12.dp))
         Text(title, color = if (active) TextPrimary else TextSecondary, fontSize = 12.sp, fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal)
