@@ -1,42 +1,48 @@
 # Social Radar
 
-Android application for discovering public Telegram groups, channels, discussion groups and communities.
+Android app for discovering public Telegram groups and channels through TDLib (MTProto).
 
 **Current version:** 0.1.0-alpha  
-**Current milestone:** Android shell and product foundation
+**Status:** TDLib authorization and public-chat discovery are implemented in the current source; CI build is pending for the latest commit.
 
-## Product constraints
+## What works in the source
 
-- Android APK; local-first architecture.
-- Search runs on-device. Internet is used only to query external public sources.
-- Telegram account authorization is mandatory for the planned MTProto integration.
-- TDLib is the preferred Telegram client library; it is not yet bundled in this initial scaffold.
-- Only public entities and public metadata are in scope. No private-chat scraping, member harvesting, mass joining or unsolicited messaging.
-- Telegram API credentials and user sessions must never be committed to source control.
+- TDLib native Android dependency and Kotlin Flow wrapper.
+- API ID / API Hash configuration.
+- Telegram login flow: phone number, login code, 2FA password, email verification and new-account registration state.
+- Search via Telegram's `SearchPublicChats` endpoint, expanded query variants, deduplication and relevance sorting.
+- Result cards resolve chat titles and public usernames; tapping a username opens the community in Telegram.
+- Local query history in the UI session.
+- Only public groups/channels are searched; the app does not scrape private chats, message contents, members or perform mass actions.
 
-## Project structure
+## Search limits
 
-- `app/` — Android application.
-- `MainActivity.kt` — initial Compose navigation and screens.
-- `docs/ARCHITECTURE.md` — implementation architecture and integration plan.
-
-## Build prerequisites
-
-- Android Studio with Android SDK Platform 36.
-- JDK 17.
-- Gradle 8.13+ (wrapper will be added in the build setup milestone).
-
-Open the project in Android Studio and sync Gradle. This repository currently contains the initial source scaffold; a verified APK has not yet been produced.
+Telegram's public-chat discovery searches community names and usernames, not messages or post contents. Search requests shorter than five characters are skipped. Telegram's API controls how many public-chat results are returned per query, so this is not an exhaustive index of all Telegram communities. Query expansion is deterministic (RU/EN variants), not an AI model.
 
 ## Telegram setup
 
-The Telegram integration requires an application `api_id` and `api_hash` obtained by the account owner from Telegram's official developer portal. They must be supplied locally and must not be committed to Git. The TDLib native Android build and authorization flow are a separate milestone.
+1. In Telegram's official developer portal at https://my.telegram.org/apps, create an app and obtain its **API ID** and **API Hash**.
+2. In Social Radar, open **Settings → Connect / configure** and enter those values.
+3. Complete the Telegram login in the app: phone, Telegram code, and 2FA/email if requested.
+4. Return to Search and enter a query of at least 5 characters.
 
-## Milestones
+Use your own Telegram account and do not share login codes or 2FA passwords. Credentials are currently stored in local app preferences; this version does not provide encrypted credential storage. TDLib's local database encryption key is not configured by the current wrapper.
 
-1. Android shell and navigation.
-2. TDLib native integration and MTProto authorization.
-3. Local search orchestration and source adapters.
-4. Result normalization, deduplication and ranking.
-5. Local persistence, export and background execution.
-6. Device testing and APK verification.
+## Build
+
+- Android Studio / Android SDK Platform 36
+- JDK 17
+- Gradle 8.13
+
+GitHub Actions builds `app:assembleDebug` and uploads the debug APK as an artifact. Device login and live Telegram searches have not been verified from CI.
+
+## Project structure
+
+- `app/` — Android app
+- `app/src/main/java/app/socialradar/TelegramSession.kt` — TDLib auth and public search
+- `app/src/main/java/app/socialradar/search/` — query expansion and search orchestration
+- `docs/ARCHITECTURE.md` — architecture notes
+
+## Scope & privacy
+
+Social Radar is a public-community discovery client. It does not provide private-chat scraping, member harvesting, mass joining or unsolicited messaging.
