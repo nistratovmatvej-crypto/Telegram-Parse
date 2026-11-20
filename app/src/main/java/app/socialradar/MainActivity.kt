@@ -341,13 +341,13 @@ private fun SettingsPage(session: TelegramSession, auth: RadarAuth, sessionMessa
         confirmButton = { TextButton(onClick = { showCredentials = false; session.configure(credentialId, credentialHash) }) { Text("Запустить TDLib") } },
         dismissButton = { TextButton(onClick = { showCredentials = false }) { Text("Отмена") } }
     )
-    val needsAuthInput = auth.phoneRequired || auth.codeRequired || auth.passwordRequired
+    val needsAuthInput = auth.phoneRequired || auth.codeRequired || auth.passwordRequired || auth.emailRequired || auth.emailCodeRequired || auth.registrationRequired
     LaunchedEffect(auth.label) { if (needsAuthInput && lastAuthDialogState != auth.label) { lastAuthDialogState = auth.label; authDialogShown = true; authInput = "" } }
     if (needsAuthInput && authDialogShown) AlertDialog(
         onDismissRequest = { authDialogShown = false },
-        title = { Text(if (auth.phoneRequired) "Номер телефона" else if (auth.codeRequired) "Код Telegram" else "Пароль 2FA") },
-        text = { OutlinedTextField(authInput, { authInput = it }, label = { Text(if (auth.phoneRequired) "+номер телефона" else if (auth.codeRequired) "Код из Telegram" else "Пароль") }, singleLine = true) },
-        confirmButton = { TextButton(onClick = { if (auth.phoneRequired) session.submitPhone(authInput) else if (auth.codeRequired) session.submitCode(authInput) else session.submitPassword(authInput); authDialogShown = true }) { Text("Отправить") } },
+        title = { Text(if (auth.phoneRequired) "Номер телефона" else if (auth.codeRequired) "Код Telegram" else if (auth.passwordRequired) "Пароль 2FA" else if (auth.emailRequired) "Email" else if (auth.emailCodeRequired) "Email-код" else "Ваше имя") },
+        text = { OutlinedTextField(authInput, { authInput = it }, label = { Text(if (auth.phoneRequired) "+номер телефона" else if (auth.codeRequired) "Код из Telegram" else if (auth.passwordRequired) "Пароль 2FA" else if (auth.emailRequired) "Email" else if (auth.emailCodeRequired) "Код из email" else "Имя") }, singleLine = true) },
+        confirmButton = { TextButton(onClick = { if (auth.phoneRequired) session.submitPhone(authInput) else if (auth.codeRequired) session.submitCode(authInput) else if (auth.passwordRequired) session.submitPassword(authInput) else if (auth.emailRequired) session.submitEmail(authInput) else if (auth.emailCodeRequired) session.submitEmailCode(authInput) else session.register(authInput); authDialogShown = true }) { Text("Отправить") } },
         dismissButton = { TextButton(onClick = { authDialogShown = false }) { Text("Позже") } }
     )
 }
