@@ -124,6 +124,8 @@ class TelegramSession(private val context: Context) {
         }
     }
 
+    fun close() { client?.close(); client = null }
+
     fun logout() {
         val td = client ?: return
         scope.launch {
