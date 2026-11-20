@@ -101,7 +101,7 @@ private fun SocialRadar() {
                 }
             ) { padding ->
                 AnimatedContent(tab, label = "screen", modifier = Modifier.fillMaxSize().padding(padding)) { page ->
-                    Page(page, history, saveQuery) { tab = 0 }
+                    Page(page, history, saveQuery, { tab = 0 }, session, results, auth, busy, sessionMessage)
                 }
             }
         }
@@ -294,7 +294,7 @@ private fun SettingsPage(session: TelegramSession, auth: RadarAuth, sessionMessa
     var credentialHash by remember { mutableStateOf(session.apiHash) }
     var authInput by remember { mutableStateOf("") }
     var authDialogShown by remember { mutableStateOf(false) }
-    var lastAuthDialogState by remember { mutableStateOf("") }\n    var lastAuthDialogState by remember { mutableStateOf("") }
+    var lastAuthDialogState by remember { mutableStateOf("") }
     Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
         Text("CONFIGURATION", color = Accent2, fontSize = 9.sp, letterSpacing = 1.5.sp, fontWeight = FontWeight.Bold)
         Text("Settings", color = TextPrimary, fontSize = 28.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-.7).sp)
@@ -343,7 +343,7 @@ private fun SettingsPage(session: TelegramSession, auth: RadarAuth, sessionMessa
     )
     val needsAuthInput = auth.phoneRequired || auth.codeRequired || auth.passwordRequired
     LaunchedEffect(auth.label) { if (needsAuthInput && lastAuthDialogState != auth.label) { lastAuthDialogState = auth.label; authDialogShown = true; authInput = "" } }
-    if (needsAuthInput) AlertDialog(
+    if (needsAuthInput && authDialogShown) AlertDialog(
         onDismissRequest = { authDialogShown = false },
         title = { Text(if (auth.phoneRequired) "Номер телефона" else if (auth.codeRequired) "Код Telegram" else "Пароль 2FA") },
         text = { OutlinedTextField(authInput, { authInput = it }, label = { Text(if (auth.phoneRequired) "+номер телефона" else if (auth.codeRequired) "Код из Telegram" else "Пароль") }, singleLine = true) },
