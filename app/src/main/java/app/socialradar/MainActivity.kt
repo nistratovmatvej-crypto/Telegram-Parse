@@ -175,7 +175,7 @@ private fun SearchPage(onSave: (String) -> Unit, session: TelegramSession, resul
         Text("DISCOVER PUBLIC COMMUNITIES", color = Accent2, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.6.sp)
         Spacer(Modifier.height(8.dp))
         Text("Find your signal.", color = TextPrimary, fontSize = if (wide) 35.sp else 29.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-1.2).sp)
-        Text("Search beyond the obvious.", color = TextSecondary, fontSize = 14.sp)
+        Text("Поиск публичных каналов и групп по названиям и username.", color = TextSecondary, fontSize = 14.sp)
         Spacer(Modifier.height(24.dp))
         Surface(color = Surface1, shape = RoundedCornerShape(22.dp), border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF2B394A)), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp)) {
@@ -187,13 +187,13 @@ private fun SearchPage(onSave: (String) -> Unit, session: TelegramSession, resul
                     Text("RU  /  EN", color = TextSecondary, fontSize = 9.sp)
                 }
                 Spacer(Modifier.height(10.dp))
-                OutlinedTextField(value = query, onValueChange = { query = it; notice = "" }, modifier = Modifier.fillMaxWidth(), placeholder = { Text("Тема, интерес или ключевые слова", color = Color(0xFF667384)) }, minLines = 2, shape = RoundedCornerShape(15.dp), keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences), colors = OutlinedTextFieldDefaults.colors(focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary, focusedBorderColor = Accent.copy(alpha = .5f), unfocusedBorderColor = Border, cursorColor = Accent, focusedContainerColor = Bg, unfocusedContainerColor = Bg))
+                OutlinedTextField(value = query, onValueChange = { query = it; notice = "" }, modifier = Modifier.fillMaxWidth(), placeholder = { Text("Ключевые слова или тема (от 5 символов)", color = Color(0xFF667384)) }, minLines = 2, shape = RoundedCornerShape(15.dp), keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences), colors = OutlinedTextFieldDefaults.colors(focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary, focusedBorderColor = Accent.copy(alpha = .5f), unfocusedBorderColor = Border, cursorColor = Accent, focusedContainerColor = Bg, unfocusedContainerColor = Bg))
                 Spacer(Modifier.height(12.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(Modifier.size(6.dp).scale(halo).background(Accent2, CircleShape))
                         Spacer(Modifier.width(7.dp))
-                        Text("Public sources only", color = TextSecondary, fontSize = 10.sp)
+                        Text("Telegram public search · 5+ chars", color = TextSecondary, fontSize = 10.sp)
                     }
                     Spacer(Modifier.weight(1f))
                     Button(onClick = { if (query.isNotBlank()) { onSave(query); session.search(query); notice = "" } }, enabled = query.isNotBlank() && !busy, shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = Accent, contentColor = Bg, disabledContainerColor = Surface3, disabledContentColor = TextSecondary)) {
@@ -326,7 +326,7 @@ private fun SettingsPage(session: TelegramSession, auth: RadarAuth, sessionMessa
             }
         }
         Text("SEARCH", color = TextSecondary, fontSize = 9.sp, letterSpacing = 1.3.sp, fontWeight = FontWeight.SemiBold)
-        SettingLine("Search strategy", "Phrase + keywords")
+        SettingLine("Search engine", "Telegram public chats")
         SettingLine("Source scope", "Public communities")
         SettingLine("Storage", "Local device")
         Spacer(Modifier.height(7.dp))
