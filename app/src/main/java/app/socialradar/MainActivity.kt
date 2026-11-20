@@ -163,6 +163,7 @@ private fun Page(tab: Int, history: List<String>, onSave: (String) -> Unit, goSe
 
 @Composable
 private fun SearchPage(onSave: (String) -> Unit, session: TelegramSession, results: List<RadarChat>, auth: RadarAuth, busy: Boolean, sessionMessage: String) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     var query by rememberSaveable { mutableStateOf("") }
     var notice by remember { mutableStateOf("") }
     val wide = LocalConfiguration.current.screenWidthDp >= 700
@@ -219,12 +220,12 @@ private fun SearchPage(onSave: (String) -> Unit, session: TelegramSession, resul
             if (results.isNotEmpty()) {
                 LazyColumn(Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(results, key = { it.id }) { chat ->
-                        Row(Modifier.fillMaxWidth().background(Surface2, RoundedCornerShape(14.dp)).padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Row(Modifier.fillMaxWidth().background(Surface2, RoundedCornerShape(14.dp)).clickable(enabled = chat.username.isNotBlank()) { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/${chat.username}"))) }.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                             Box(Modifier.size(38.dp).background(Color(0xFF1A2E42), RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) { Icon(Icons.Outlined.Search, null, tint = Accent) }
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(chat.title, color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 2)
-                                Text(chat.type, color = TextSecondary, fontSize = 10.sp)
+                                Text(if (chat.username.isNotBlank()) "@${chat.username} · ${chat.type}" else chat.type, color = TextSecondary, fontSize = 10.sp)
                             }
                         }
                     }
