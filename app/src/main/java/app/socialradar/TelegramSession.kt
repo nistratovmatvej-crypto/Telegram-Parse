@@ -14,7 +14,7 @@ import org.drinkless.tdlib.TdApi
 data class RadarChat(val id: Long, val title: String, val type: String)
 data class RadarAuth(val label: String = "Не подключено", val ready: Boolean = false, val codeRequired: Boolean = false, val passwordRequired: Boolean = false, val phoneRequired: Boolean = false)
 
-class TelegramSession(context: Context) {
+class TelegramSession(private val context: Context) {
     private val prefs = context.getSharedPreferences("telegram_session_config", Context.MODE_PRIVATE)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var client: TdClient? = null
@@ -99,7 +99,7 @@ class TelegramSession(context: Context) {
                 q.split(Regex("[\\s,;]+")).filter { it.length >= 3 }.take(4).forEach { variants.add(it) }
                 val merged = linkedMapOf<Long, RadarChat>()
                 for (variant in variants.take(5)) {
-                    val response = td.send(TdApi.SearchPublicChats(variant))
+                    val response = td.send(TdApi.SearchPublicChats(variant, null))
                     response.chats.forEach { chat ->
                         val kind = when (chat.type) {
                             is TdApi.ChatTypeSupergroup -> "Группа / канал"
