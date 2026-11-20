@@ -319,7 +319,7 @@ private fun SettingsPage(session: TelegramSession, auth: RadarAuth, sessionMessa
                     }
                 }
                 Spacer(Modifier.height(13.dp))
-                Text("TDLib engine is included. API credentials are stored locally; phone, login code and 2FA are handled inside this app.", color = TextSecondary, fontSize = 11.sp, lineHeight = 17.sp)
+                Text("API ID and Hash are encrypted with Android Keystore. Phone, login code and 2FA stay in this app. TDLib local database is not encrypted in this version; protect this device.", color = TextSecondary, fontSize = 11.sp, lineHeight = 17.sp)
                 if (sessionMessage.isNotBlank()) Text(sessionMessage, color = TextSecondary, fontSize = 10.sp, lineHeight = 15.sp)
                 Spacer(Modifier.height(12.dp))
                 Text(if (auth.ready) "Disconnect account" else "Connect / configure ↗", color = Accent, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable { if (auth.ready) session.logout() else showCredentials = true })
