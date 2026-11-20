@@ -11,13 +11,27 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.cancel
 import org.drinkless.tdlib.TdApi
+import app.socialradar.search.SearchQueryPlanner
+import app.socialradar.search.SearchRequest
+import java.util.Locale
 
 data class RadarChat(val id: Long, val title: String, val type: String, val username: String = "")
-data class RadarAuth(val label: String = "Не подключено", val ready: Boolean = false, val codeRequired: Boolean = false, val passwordRequired: Boolean = false, val phoneRequired: Boolean = false, val emailRequired: Boolean = false, val emailCodeRequired: Boolean = false, val registrationRequired: Boolean = false, val otherDeviceLink: String = "")
+data class RadarAuth(
+    val label: String = "Не подключено",
+    val ready: Boolean = false,
+    val codeRequired: Boolean = false,
+    val passwordRequired: Boolean = false,
+    val phoneRequired: Boolean = false,
+    val emailRequired: Boolean = false,
+    val emailCodeRequired: Boolean = false,
+    val registrationRequired: Boolean = false,
+    val otherDeviceLink: String = ""
+)
 
 class TelegramSession(private val context: Context) {
     private val prefs = context.getSharedPreferences("telegram_session_config", Context.MODE_PRIVATE)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val planner = SearchQueryPlanner()
     private var client: TdClient? = null
     private val _auth = MutableStateFlow(RadarAuth())
     val auth: StateFlow<RadarAuth> = _auth
@@ -32,18 +46,27 @@ class TelegramSession(private val context: Context) {
 
     fun configure(id: String, hash: String) {
         val parsed = id.trim().toIntOrNull()
-        if (parsed == null || hash.trim().length < 20) { _message.value = "Проверьте API ID и API Hash."; return }
-        prefs.edit().putString("api_id", parsed.toString()).putString("api_hash", hash.trim()).apply()
+        val cleanedHash = hash.trim()
+        if (parsed == null || parsed <= 0 || cleanedHash.length != 32 || !cleanedHash.all { it.isLetterOrDigit() }) {
+            _message.value = "API ID должен быть числом, API Hash — 32 символа."
+            return
+        }
+        prefs.edit().putString("api_id", parsed.toString()).putString("api_hash", cleanedHash).apply()
         connect()
     }
 
     fun connect() {
         if (client != null) return
         val id = apiId.toIntOrNull() ?: run { _message.value = "Сначала укажите API ID и API Hash."; return }
-        val hash = apiHash.takeIf { it.length >= 20 } ?: run { _message.value = "API Hash не заполнен."; return }
+        val hash = apiHash.takeIf { it.length == 32 } ?: run { _message.value = "API Hash не заполнен или некорректен."; return }
         try {
             System.loadLibrary("tdjni")
-            val td = TdClient(context.filesDir.absolutePath + "/social-radar-tdlib", 1, id, hash)
+            val td = TdClient(
+                filesDir = context.filesDir.absolutePath + "/social-radar-tdlib",
+                verbosityLevel = 1,
+                apiId = id,
+                apiHash = hash
+            )
             client = td
             scope.launch {
                 td.updates.collect { update ->
@@ -56,10 +79,16 @@ class TelegramSession(private val context: Context) {
                             is TdApi.AuthorizationStateWaitEmailCode -> _auth.value = RadarAuth("Код отправлен на email", emailCodeRequired = true)
                             is TdApi.AuthorizationStateWaitRegistration -> _auth.value = RadarAuth("Регистрация Telegram", registrationRequired = true)
                             is TdApi.AuthorizationStateWaitOtherDeviceConfirmation -> _auth.value = RadarAuth("Подтвердите вход на другом устройстве", otherDeviceLink = state.link)
-                            is TdApi.AuthorizationStateReady -> { _auth.value = RadarAuth("Подключено", ready = true); _message.value = "Telegram подключён." }
+                            is TdApi.AuthorizationStateReady -> {
+                                _auth.value = RadarAuth("Подключено", ready = true)
+                                _message.value = "Telegram подключён. Можно искать публичные сообщества."
+                            }
                             is TdApi.AuthorizationStateLoggingOut -> _auth.value = RadarAuth("Выход…")
                             is TdApi.AuthorizationStateClosing -> _auth.value = RadarAuth("Закрытие…")
-                            is TdApi.AuthorizationStateClosed -> { _auth.value = RadarAuth("Сессия закрыта"); client = null }
+                            is TdApi.AuthorizationStateClosed -> {
+                                _auth.value = RadarAuth("Сессия закрыта")
+                                client = null
+                            }
                             else -> _auth.value = RadarAuth("Подготовка TDLib…")
                         }
                     }
@@ -75,12 +104,36 @@ class TelegramSession(private val context: Context) {
         }
     }
 
-    fun submitPhone(phone: String) { request(TdApi.SetAuthenticationPhoneNumber(phone.trim(), null)) }
-    fun submitCode(code: String) { request(TdApi.CheckAuthenticationCode(code.trim())) }
-    fun submitPassword(password: String) { request(TdApi.CheckAuthenticationPassword(password)) }
-    fun submitEmail(email: String) { request(TdApi.SetAuthenticationEmailAddress(email.trim())) }
-    fun submitEmailCode(code: String) { request(TdApi.CheckAuthenticationEmailCode(TdApi.EmailAddressAuthenticationCode(code.trim()))) }
-    fun register(firstName: String) { request(TdApi.RegisterUser(firstName.trim(), "", false)) }
+    fun submitPhone(phone: String) {
+        val normalized = phone.trim().replace(" ", "").replace("-", "")
+        if (!normalized.startsWith("+") || normalized.drop(1).any { !it.isDigit() } || normalized.length < 8) {
+            _message.value = "Введите номер телефона в международном формате, например +49…"
+            return
+        }
+        request(TdApi.SetAuthenticationPhoneNumber(normalized, null))
+    }
+    fun submitCode(code: String) {
+        val normalized = code.trim()
+        if (normalized.isBlank()) { _message.value = "Введите код из Telegram."; return }
+        request(TdApi.CheckAuthenticationCode(normalized))
+    }
+    fun submitPassword(password: String) {
+        if (password.isBlank()) { _message.value = "Введите пароль 2FA."; return }
+        request(TdApi.CheckAuthenticationPassword(password))
+    }
+    fun submitEmail(email: String) {
+        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches()) { _message.value = "Введите корректный email."; return }
+        request(TdApi.SetAuthenticationEmailAddress(email.trim()))
+    }
+    fun submitEmailCode(code: String) {
+        if (code.isBlank()) { _message.value = "Введите email-код."; return }
+        request(TdApi.CheckAuthenticationEmailCode(TdApi.EmailAddressAuthenticationCode(code.trim())))
+    }
+    fun register(firstName: String) {
+        val name = firstName.trim()
+        if (name.isBlank()) { _message.value = "Введите имя для регистрации."; return }
+        request(TdApi.RegisterUser(name, "", false))
+    }
 
     private fun request(fn: TdApi.Function<*>) {
         val td = client ?: run { _message.value = "TDLib не запущена."; return }
@@ -89,50 +142,111 @@ class TelegramSession(private val context: Context) {
                 @Suppress("UNCHECKED_CAST")
                 td.send(fn as TdApi.Function<TdApi.Object>)
                 _message.value = "Запрос отправлен."
-            } catch (e: Exception) { _message.value = e.message ?: "Ошибка авторизации." }
+            } catch (e: Exception) {
+                _message.value = safeError(e)
+            }
         }
     }
 
+    /**
+     * Telegram's public-chat discovery endpoint searches names and usernames only.
+     * It is not a full message/content search. Queries shorter than 5 characters
+     * are skipped because Telegram returns no useful public-chat results.
+     */
     fun search(raw: String) {
         val td = client
-        if (td == null || !_auth.value.ready) { _message.value = "Подключите Telegram и завершите авторизацию."; return }
+        if (td == null || !_auth.value.ready) {
+            _message.value = "Подключите Telegram и завершите авторизацию."
+            return
+        }
         val q = raw.trim()
         if (q.isBlank()) return
+        if (q.length < 5) {
+            _results.value = emptyList()
+            _message.value = "Для поиска публичных групп и каналов нужно минимум 5 символов."
+            return
+        }
+        if (_busy.value) return
         _busy.value = true
         _results.value = emptyList()
-        _message.value = "Ищем публичные чаты…"
+        _message.value = "Поиск публичных групп и каналов по названиям и username…"
         scope.launch {
             try {
-                val variants = linkedSetOf(q)
-                q.split(Regex("[\\s,;]+")).filter { it.length >= 3 }.take(4).forEach { variants.add(it) }
+                val planned = planner.expand(SearchRequest(q, languageCodes = setOf("ru", "en"), maxExpansionQueries = 24))
+                val variants = linkedSetOf<String>()
+                variants += q
+                q.split(Regex("[^\\p{L}\\p{N}]+"))
+                    .filter { it.length >= 5 }
+                    .take(4)
+                    .forEach { variants += it }
+                planned.filter { it.length >= 5 }.forEach { variants += it }
+                val safeVariants = variants.map(String::trim)
+                    .filter { it.length >= 5 && it.length <= 64 }
+                    .distinctBy { it.lowercase(Locale.ROOT) }
+                    .take(8)
                 val merged = linkedMapOf<Long, RadarChat>()
-                for (variant in variants.take(5)) {
-                    val response = td.send(TdApi.SearchPublicChats(variant, null))
-                    response.chatIds.take(10).forEach { chatId ->
-                        val chat = td.send(TdApi.GetChat(chatId))
-                        val chatType = chat.type
-                        val kind = when (chatType) {
-                            is TdApi.ChatTypeSupergroup -> "Группа / канал"
-                            is TdApi.ChatTypeBasicGroup -> "Группа"
-                            else -> "Публичный чат"
+                var searched = 0
+                var failures = 0
+                for (variant in safeVariants) {
+                    try {
+                        val response = td.send(TdApi.SearchPublicChats(variant, null))
+                        searched++
+                        response.chatIds.take(20).forEach { chatId ->
+                            if (chatId in merged) return@forEach
+                            val chat = try { td.send(TdApi.GetChat(chatId)) } catch (_: Exception) { return@forEach }
+                            val type = chat.type
+                            var kind = "Публичный чат"
+                            var username = ""
+                            if (type is TdApi.ChatTypeSupergroup) {
+                                try {
+                                    val supergroup = td.send(TdApi.GetSupergroup(type.supergroupId))
+                                    username = supergroup.usernames?.activeUsernames?.firstOrNull().orEmpty()
+                                    kind = if (supergroup.isChannel) "Канал" else "Группа"
+                                } catch (_: Exception) {
+                                    kind = "Группа / канал"
+                                }
+                            } else if (type is TdApi.ChatTypeBasicGroup) {
+                                kind = "Группа"
+                            }
+                            merged[chat.id] = RadarChat(chat.id, chat.title, kind, username)
                         }
-                        val username = if (chatType is TdApi.ChatTypeSupergroup) {
-                            try {
-                                val supergroup = td.send(TdApi.GetSupergroup(chatType.supergroupId))
-                                supergroup.usernames?.activeUsernames?.firstOrNull().orEmpty()
-                            } catch (_: Exception) { "" }
-                        } else ""
-                        merged[chat.id] = RadarChat(chat.id, chat.title, kind, username)
+                    } catch (_: Exception) {
+                        failures++
                     }
                 }
-                _results.value = merged.values.sortedByDescending { chat -> q.split(Regex("[\\s,;]+")).count { it.length >= 2 && chat.title.contains(it, true) } }.take(100)
-                _message.value = "Найдено публичных чатов: ${_results.value.size}"
-            } catch (e: Exception) { _message.value = "Ошибка поиска: ${e.message ?: "неизвестная ошибка"}" }
-            finally { _busy.value = false }
+                val terms = q.lowercase(Locale.ROOT).split(Regex("[^\\p{L}\\p{N}]+")).filter { it.length >= 3 }
+                _results.value = merged.values.sortedWith(
+                    compareByDescending<RadarChat> { chat ->
+                        val title = chat.title.lowercase(Locale.ROOT)
+                        val user = chat.username.lowercase(Locale.ROOT)
+                        (terms.count { title.contains(it) } * 4) +
+                            (terms.count { user.contains(it) } * 3) +
+                            (if (title.contains(q.lowercase(Locale.ROOT)) || user.contains(q.lowercase(Locale.ROOT)) ) 10 else 0)
+                    }.thenBy { it.title.lowercase(Locale.ROOT) }
+                ).take(100)
+                _message.value = if (searched == 0 && failures > 0) {
+                    "Telegram не принял запросы. Проверьте соединение и повторите позже."
+                } else {
+                    "Проверено запросов: $searched · найдено: ${_results.value.size}. Поиск ограничен публичными названиями и username."
+                }
+            } catch (e: Exception) {
+                _message.value = "Ошибка поиска: ${safeError(e)}"
+            } finally {
+                _busy.value = false
+            }
         }
     }
 
-    fun close() { client?.close(); client = null; scope.cancel() }
+    private fun safeError(e: Exception): String {
+        val raw = e.message ?: e.javaClass.simpleName
+        return raw.take(220)
+    }
+
+    fun close() {
+        client?.close()
+        client = null
+        scope.cancel()
+    }
 
     fun logout() {
         val td = client ?: return
@@ -142,6 +256,7 @@ class TelegramSession(private val context: Context) {
             client = null
             _auth.value = RadarAuth("Вы вышли из Telegram")
             _results.value = emptyList()
+            _message.value = "Сессия Telegram закрыта."
         }
     }
 }
