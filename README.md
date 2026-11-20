@@ -26,7 +26,7 @@ Telegram's public-chat discovery searches community names and usernames, not mes
 3. Complete the Telegram login in the app: phone, Telegram code, and 2FA/email if requested.
 4. Return to Search and enter a query of at least 5 characters.
 
-Use your own Telegram account and do not share login codes or 2FA passwords. Credentials are currently stored in local app preferences; this version does not provide encrypted credential storage. TDLib's local database encryption key is not configured by the current wrapper.
+Use your own Telegram account and do not share login codes or 2FA passwords. API ID and API Hash are now stored using AES-GCM with an Android Keystore key; legacy plain-text preference values are migrated when possible. The current TDLib wrapper still uses an empty local database encryption key, so its Telegram database files are not encrypted by this app version. Use device screen lock and do not install on shared devices.
 
 ## Build
 
