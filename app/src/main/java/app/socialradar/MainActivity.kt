@@ -1,26 +1,21 @@
 package app.socialradar
 
 import android.os.Bundle
+import android.content.Intent
+import android.net.Uri
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.*
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -31,30 +26,15 @@ import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.outlined.Tune
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.material.icons.outlined.ArrowForward
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -63,368 +43,206 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-private val RadarBackground = Color(0xFF0B0D10)
-private val RadarPanel = Color(0xFF12161B)
-private val RadarPanelRaised = Color(0xFF181D23)
-private val RadarText = Color(0xFFF1F3F5)
-private val RadarMuted = Color(0xFF89929D)
-private val RadarAccent = Color(0xFFD9E2EC)
-private val RadarAccentInk = Color(0xFF111820)
-private val RadarLine = Color(0xFF252C34)
-private val RadarGreen = Color(0xFF91B8A1)
-
-private val RadarColors = darkColorScheme(
-    primary = RadarAccent,
-    onPrimary = RadarAccentInk,
-    secondary = RadarMuted,
-    background = RadarBackground,
-    surface = RadarPanel,
-    onBackground = RadarText,
-    onSurface = RadarText,
-    outline = RadarLine
+private val Bg = Color(0xFF080B10)
+private val Surface1 = Color(0xFF10151D)
+private val Surface2 = Color(0xFF151C26)
+private val Surface3 = Color(0xFF1B2430)
+private val TextPrimary = Color(0xFFF2F5F8)
+private val TextSecondary = Color(0xFF8793A3)
+private val Accent = Color(0xFF8BB7FF)
+private val Accent2 = Color(0xFF58D6BD)
+private val Border = Color(0xFF222D3A)
+private val RadarScheme = darkColorScheme(
+    primary = Accent, onPrimary = Bg, secondary = Accent2, background = Bg,
+    surface = Surface1, onSurface = TextPrimary, onBackground = TextPrimary,
+    outline = Border
 )
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent {
-            MaterialTheme(colorScheme = RadarColors) {
-                SocialRadarApp()
-            }
-        }
+        setContent { MaterialTheme(colorScheme = RadarScheme) { SocialRadar() } }
     }
 }
 
-private enum class MainTab { Search, History, Settings }
-
 @Composable
-private fun SocialRadarApp() {
-    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
-    var queryHistory by rememberSaveable { mutableStateOf(emptyList<String>()) }
-    val wideLayout = LocalConfiguration.current.screenWidthDp >= 700
-
-    val onSearch: (String) -> Unit = { value ->
-        val normalized = value.trim()
-        if (normalized.isNotEmpty()) {
-            queryHistory = listOf(normalized) + queryHistory.filterNot { it.equals(normalized, true) }.take(29)
-        }
+private fun SocialRadar() {
+    var tab by rememberSaveable { mutableIntStateOf(0) }
+    var history by rememberSaveable { mutableStateOf(emptyList<String>()) }
+    val wide = LocalConfiguration.current.screenWidthDp >= 700
+    val saveQuery: (String) -> Unit = { raw ->
+        val q = raw.trim()
+        if (q.isNotEmpty()) history = listOf(q) + history.filterNot { it.equals(q, true) }.take(29)
     }
-
-    if (wideLayout) {
-        Row(
-            modifier = Modifier.fillMaxSize().background(RadarBackground)
-        ) {
-            Sidebar(
-                selectedTab = selectedTab,
-                onSelect = { selectedTab = it },
-                modifier = Modifier.width(236.dp).fillMaxHeight()
-            )
-            Box(
-                modifier = Modifier.weight(1f).fillMaxHeight()
-            ) {
-                MainContent(
-                    selectedTab = selectedTab,
-                    history = queryHistory,
-                    onSearch = onSearch,
-                    onSelectSearch = { selectedTab = 0 }
-                )
-            }
-        }
-    } else {
-        Scaffold(
-            containerColor = RadarBackground,
-            contentWindowInsets = WindowInsets.navigationBars,
-            bottomBar = {
-                NavigationBar(
-                    containerColor = RadarPanel,
-                    contentColor = RadarText,
-                    modifier = Modifier.navigationBarsPadding()
-                ) {
-                    NavigationBarItem(
-                        selected = selectedTab == 0,
-                        onClick = { selectedTab = 0 },
-                        icon = { Icon(Icons.Outlined.Search, contentDescription = "Поиск") },
-                        label = { Text("Поиск") }
-                    )
-                    NavigationBarItem(
-                        selected = selectedTab == 1,
-                        onClick = { selectedTab = 1 },
-                        icon = { Icon(Icons.Outlined.History, contentDescription = "История") },
-                        label = { Text("История") }
-                    )
-                    NavigationBarItem(
-                        selected = selectedTab == 2,
-                        onClick = { selectedTab = 2 },
-                        icon = { Icon(Icons.Outlined.Settings, contentDescription = "Настройки") },
-                        label = { Text("Настройки") }
-                    )
+    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF0B1421), Bg, Bg)))) {
+        if (wide) {
+            Row(Modifier.fillMaxSize()) {
+                NavigationRailPanel(tab, { tab = it }, Modifier.width(240.dp).fillMaxHeight())
+                AnimatedContent(tab, label = "page", modifier = Modifier.weight(1f)) { page ->
+                    Page(page, history, saveQuery) { tab = 0 }
                 }
             }
-        ) { insets ->
-            Box(Modifier.fillMaxSize().padding(insets)) {
-                MainContent(
-                    selectedTab = selectedTab,
-                    history = queryHistory,
-                    onSearch = onSearch,
-                    onSelectSearch = { selectedTab = 0 }
-                )
+        } else {
+            Scaffold(
+                containerColor = Color.Transparent,
+                bottomBar = {
+                    NavigationBar(containerColor = Color(0xFF0D1219), tonalElevation = 0.dp) {
+                        NavigationBarItem(tab == 0, { tab = 0 }, icon = { Icon(Icons.Outlined.Search, null) }, label = { Text("Поиск") })
+                        NavigationBarItem(tab == 1, { tab = 1 }, icon = { Icon(Icons.Outlined.History, null) }, label = { Text("История") })
+                        NavigationBarItem(tab == 2, { tab = 2 }, icon = { Icon(Icons.Outlined.Settings, null) }, label = { Text("Настройки") })
+                    }
+                }
+            ) { padding ->
+                AnimatedContent(tab, label = "screen", modifier = Modifier.fillMaxSize().padding(padding)) { page ->
+                    Page(page, history, saveQuery) { tab = 0 }
+                }
             }
         }
     }
 }
 
 @Composable
-private fun Sidebar(
-    selectedTab: Int,
-    onSelect: (Int) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier
-            .background(RadarPanel)
-            .padding(horizontal = 18.dp, vertical = 24.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier.size(34.dp).background(RadarAccent, RoundedCornerShape(11.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Outlined.Search, contentDescription = null, tint = RadarAccentInk, modifier = Modifier.size(19.dp))
-            }
-            Spacer(Modifier.width(11.dp))
-            Column {
-                Text("SOCIAL RADAR", color = RadarText, fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.1.sp)
-                Text("TELEGRAM DISCOVERY", color = RadarMuted, fontSize = 8.sp, letterSpacing = 1.1.sp)
-            }
-        }
-        Spacer(Modifier.height(38.dp))
-        Text("РАБОЧЕЕ ПРОСТРАНСТВО", color = RadarMuted, fontSize = 9.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.25.sp, modifier = Modifier.padding(start = 10.dp, bottom = 12.dp))
-        SidebarItem("Поиск", Icons.Outlined.Search, selectedTab == 0) { onSelect(0) }
-        SidebarItem("История запросов", Icons.Outlined.History, selectedTab == 1) { onSelect(1) }
+private fun NavigationRailPanel(tab: Int, onTab: (Int) -> Unit, modifier: Modifier = Modifier) {
+    Column(modifier.background(Color(0xB90D1219)).padding(20.dp)) {
+        Brand()
+        Spacer(Modifier.height(40.dp))
+        Text("WORKSPACE", color = TextSecondary, fontSize = 10.sp, letterSpacing = 1.5.sp, modifier = Modifier.padding(start = 10.dp, bottom = 12.dp))
+        NavItem("Исследование", Icons.Outlined.Search, tab == 0) { onTab(0) }
+        NavItem("История", Icons.Outlined.History, tab == 1) { onTab(1) }
         Spacer(Modifier.weight(1f))
-        HorizontalDivider(color = RadarLine)
-        Spacer(Modifier.height(14.dp))
-        SidebarItem("Настройки", Icons.Outlined.Settings, selectedTab == 2) { onSelect(2) }
-        Spacer(Modifier.height(14.dp))
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 8.dp)) {
-            Box(Modifier.size(30.dp).background(RadarPanelRaised, CircleShape), contentAlignment = Alignment.Center) {
-                Text("SR", color = RadarAccent, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-            }
-            Spacer(Modifier.width(10.dp))
-            Column {
-                Text("Локальный профиль", color = RadarText, fontSize = 11.sp, fontWeight = FontWeight.Medium)
-                Text("Данные на устройстве", color = RadarMuted, fontSize = 9.sp)
-            }
-        }
-    }
-}
-
-@Composable
-private fun SidebarItem(
-    title: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    selected: Boolean,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 3.dp)
-            .background(if (selected) RadarPanelRaised else Color.Transparent, RoundedCornerShape(11.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 11.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(icon, contentDescription = null, tint = if (selected) RadarAccent else RadarMuted, modifier = Modifier.size(18.dp))
-        Spacer(Modifier.width(12.dp))
-        Text(title, color = if (selected) RadarText else RadarMuted, fontSize = 12.sp, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal)
-    }
-}
-
-@Composable
-private fun MainContent(
-    selectedTab: Int,
-    history: List<String>,
-    onSearch: (String) -> Unit,
-    onSelectSearch: () -> Unit
-) {
-    when (selectedTab) {
-        0 -> SearchScreen(onSearch)
-        1 -> HistoryScreen(history, onSelectSearch)
-        else -> SettingsScreen()
-    }
-}
-
-@Composable
-private fun SearchScreen(onSearch: (String) -> Unit) {
-    var query by rememberSaveable { mutableStateOf("") }
-    var status by remember { mutableStateOf<String?>(null) }
-    val wideLayout = LocalConfiguration.current.screenWidthDp >= 700
-
-    Column(
-        modifier = Modifier.fillMaxSize().padding(
-            horizontal = if (wideLayout) 42.dp else 22.dp,
-            vertical = if (wideLayout) 28.dp else 20.dp
-        )
-    ) {
+        NavItem("Настройки", Icons.Outlined.Settings, tab == 2) { onTab(2) }
+        Spacer(Modifier.height(18.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Column {
-                Text("ПОИСК СООБЩЕСТВ", color = RadarMuted, fontSize = 9.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.6.sp)
-                Text("Найди свою аудиторию.", color = RadarText, fontSize = if (wideLayout) 27.sp else 23.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.7).sp)
-            }
-            Spacer(Modifier.weight(1f))
-            Box(Modifier.size(38.dp).background(RadarPanelRaised, CircleShape), contentAlignment = Alignment.Center) {
-                Text("SR", color = RadarAccent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-            }
+            Box(Modifier.size(8.dp).background(Accent2, CircleShape))
+            Spacer(Modifier.width(8.dp))
+            Text("LOCAL · PRIVATE", color = TextSecondary, fontSize = 9.sp, letterSpacing = 1.sp)
         }
+    }
+}
 
-        Spacer(Modifier.height(if (wideLayout) 28.dp else 22.dp))
-        Surface(
-            color = RadarPanel,
-            shape = RoundedCornerShape(18.dp),
-            border = androidx.compose.foundation.BorderStroke(1.dp, RadarLine),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(Modifier.padding(if (wideLayout) 20.dp else 15.dp)) {
+@Composable
+private fun Brand() {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(36.dp).background(Brush.linearGradient(listOf(Accent, Color(0xFF5079B7))), RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
+            Icon(Icons.Outlined.Search, null, tint = Bg, modifier = Modifier.size(19.dp))
+        }
+        Spacer(Modifier.width(10.dp))
+        Column {
+            Text("SOCIAL RADAR", color = TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.1.sp)
+            Text("TELEGRAM DISCOVERY", color = TextSecondary, fontSize = 8.sp, letterSpacing = 1.2.sp)
+        }
+    }
+}
+
+@Composable
+private fun NavItem(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector, active: Boolean, action: () -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp).background(if (active) Surface3 else Color.Transparent, RoundedCornerShape(12.dp).takeIf { active } ?: RoundedCornerShape(0.dp)).clickable { action() }.padding(horizontal = 12.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, null, tint = if (active) Accent else TextSecondary, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(12.dp))
+        Text(title, color = if (active) TextPrimary else TextSecondary, fontSize = 12.sp, fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal)
+    }
+}
+
+@Composable
+private fun Page(tab: Int, history: List<String>, onSave: (String) -> Unit, goSearch: () -> Unit) {
+    when (tab) {
+        0 -> SearchPage(onSave)
+        1 -> HistoryPage(history, goSearch)
+        else -> SettingsPage()
+    }
+}
+
+@Composable
+private fun SearchPage(onSave: (String) -> Unit) {
+    var query by rememberSaveable { mutableStateOf("") }
+    var notice by remember { mutableStateOf("") }
+    val wide = LocalConfiguration.current.screenWidthDp >= 700
+    val infinite = rememberInfiniteTransition(label = "ambient")
+    val halo by infinite.animateFloat(0.92f, 1.08f, infiniteRepeatable(tween(2400, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "halo")
+    Column(Modifier.fillMaxSize().padding(horizontal = if (wide) 48.dp else 22.dp, vertical = if (wide) 34.dp else 25.dp)) {
+        Brand()
+        Spacer(Modifier.height(36.dp))
+        Text("DISCOVER PUBLIC COMMUNITIES", color = Accent2, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.6.sp)
+        Spacer(Modifier.height(8.dp))
+        Text("Find your signal.", color = TextPrimary, fontSize = if (wide) 35.sp else 29.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-1.2).sp)
+        Text("Search beyond the obvious.", color = TextSecondary, fontSize = 14.sp)
+        Spacer(Modifier.height(24.dp))
+        Surface(color = Surface1, shape = RoundedCornerShape(22.dp), border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF2B394A)), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.Search, contentDescription = null, tint = RadarMuted, modifier = Modifier.size(17.dp))
-                    Spacer(Modifier.width(9.dp))
-                    Text("ТЕМА ИЛИ КЛЮЧЕВЫЕ СЛОВА", color = RadarMuted, fontSize = 9.sp, letterSpacing = 1.2.sp, fontWeight = FontWeight.SemiBold)
+                    Icon(Icons.Outlined.Search, null, tint = Accent, modifier = Modifier.size(17.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("SEARCH INTELLIGENCE", color = TextSecondary, fontSize = 9.sp, letterSpacing = 1.2.sp, fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.weight(1f))
-                    Text("RU · EN", color = RadarMuted, fontSize = 9.sp, letterSpacing = 0.8.sp)
+                    Text("RU  /  EN", color = TextSecondary, fontSize = 9.sp)
                 }
-                Spacer(Modifier.height(12.dp))
-                OutlinedTextField(
-                    value = query,
-                    onValueChange = { query = it; status = null },
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("Например, независимые разработчики игр", color = Color(0xFF66717D), fontSize = 14.sp) },
-                    minLines = if (wideLayout) 2 else 2,
-                    shape = RoundedCornerShape(12.dp),
-                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = RadarText,
-                        unfocusedTextColor = RadarText,
-                        focusedBorderColor = Color(0xFF657789),
-                        unfocusedBorderColor = RadarLine,
-                        cursorColor = RadarAccent,
-                        focusedContainerColor = RadarBackground,
-                        unfocusedContainerColor = RadarBackground
-                    )
-                )
+                Spacer(Modifier.height(10.dp))
+                OutlinedTextField(value = query, onValueChange = { query = it; notice = "" }, modifier = Modifier.fillMaxWidth(), placeholder = { Text("Тема, интерес или ключевые слова", color = Color(0xFF667384)) }, minLines = 2, shape = RoundedCornerShape(15.dp), keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences), colors = OutlinedTextFieldDefaults.colors(focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary, focusedBorderColor = Accent.copy(alpha = .5f), unfocusedBorderColor = Border, cursorColor = Accent, focusedContainerColor = Bg, unfocusedContainerColor = Bg))
                 Spacer(Modifier.height(12.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.size(6.dp).background(RadarGreen, CircleShape))
+                        Box(Modifier.size(6.dp).scale(halo).background(Accent2, CircleShape))
                         Spacer(Modifier.width(7.dp))
-                        Text("Только публичные сообщества", color = RadarMuted, fontSize = 10.sp)
+                        Text("Public sources only", color = TextSecondary, fontSize = 10.sp)
                     }
                     Spacer(Modifier.weight(1f))
-                    Button(
-                        onClick = {
-                            if (query.isNotBlank()) {
-                                onSearch(query)
-                                status = "Запрос добавлен в историю. Подключение Telegram-поиска ещё в разработке."
-                            }
-                        },
-                        enabled = query.isNotBlank(),
-                        shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = RadarAccent,
-                            contentColor = RadarAccentInk,
-                            disabledContainerColor = RadarPanelRaised,
-                            disabledContentColor = RadarMuted
-                        )
-                    ) {
-                        Text("Найти", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                        Spacer(Modifier.width(7.dp))
-                        Icon(Icons.Outlined.ArrowUpward, contentDescription = null, modifier = Modifier.size(15.dp))
+                    Button(onClick = { if (query.isNotBlank()) { onSave(query); notice = "Запрос сохранён. Telegram search engine пока не подключён." } }, enabled = query.isNotBlank(), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = Accent, contentColor = Bg, disabledContainerColor = Surface3, disabledContentColor = TextSecondary)) {
+                        Text("Search", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                        Spacer(Modifier.width(6.dp))
+                        Icon(Icons.Outlined.ArrowUpward, null, modifier = Modifier.size(14.dp))
                     }
                 }
-                if (status != null) {
-                    Spacer(Modifier.height(8.dp))
-                    Text(status!!, color = RadarMuted, fontSize = 11.sp, lineHeight = 16.sp)
+                AnimatedVisibility(notice.isNotEmpty(), enter = fadeIn() + slideInVertically { it / 3 }, exit = fadeOut() + slideOutVertically { it / 3 }) {
+                    Text(notice, color = TextSecondary, fontSize = 11.sp, lineHeight = 16.sp, modifier = Modifier.padding(top = 8.dp))
                 }
             }
         }
-
         Spacer(Modifier.height(26.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Результаты", color = RadarText, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.width(9.dp))
-            Surface(color = RadarPanelRaised, shape = RoundedCornerShape(6.dp)) {
-                Text("0", color = RadarMuted, fontSize = 10.sp, modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp))
-            }
+            Text("Results", color = TextPrimary, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.width(8.dp))
+            Surface(color = Surface3, shape = RoundedCornerShape(7.dp)) { Text("—", color = TextSecondary, fontSize = 10.sp, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) }
             Spacer(Modifier.weight(1f))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.Tune, contentDescription = null, tint = RadarMuted, modifier = Modifier.size(14.dp))
-                Spacer(Modifier.width(5.dp))
-                Text("ФИЛЬТРЫ", color = RadarMuted, fontSize = 9.sp, letterSpacing = 1.sp)
-            }
+            Text("LIVE SEARCH", color = TextSecondary, fontSize = 9.sp, letterSpacing = 1.sp)
         }
         Spacer(Modifier.height(12.dp))
-        Surface(
-            modifier = Modifier.fillMaxWidth().weight(1f),
-            color = RadarPanel,
-            shape = RoundedCornerShape(18.dp),
-            border = androidx.compose.foundation.BorderStroke(1.dp, RadarLine)
-        ) {
+        Surface(Modifier.fillMaxWidth().weight(1f).animateContentSize(), color = Surface1.copy(alpha = .8f), shape = RoundedCornerShape(22.dp), border = androidx.compose.foundation.BorderStroke(1.dp, Border)) {
             Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Box(
-                        modifier = Modifier.size(54.dp).background(RadarPanelRaised, CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Outlined.Search, contentDescription = null, tint = RadarAccent, modifier = Modifier.size(23.dp))
+                    Box(Modifier.size(66.dp).scale(halo).background(Brush.radialGradient(listOf(Color(0xFF1B3550), Surface2)), CircleShape), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Outlined.Search, null, tint = Accent, modifier = Modifier.size(25.dp))
                     }
-                    Spacer(Modifier.height(16.dp))
-                    Text("Здесь появятся сообщества", color = RadarText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        "Введи тему выше, чтобы подготовить поиск публичных Telegram-каналов, групп и обсуждений.",
-                        color = RadarMuted,
-                        fontSize = 11.sp,
-                        lineHeight = 17.sp,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                        modifier = Modifier.widthIn(max = 340.dp)
-                    )
                     Spacer(Modifier.height(18.dp))
-                    Text("MAXIMUM SEARCH  ·  PUBLIC DATA", color = RadarMuted, fontSize = 8.sp, letterSpacing = 1.2.sp)
+                    Text("Your search starts here", color = TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.height(7.dp))
+                    Text("Введите тему — когда Telegram будет подключён,
+здесь появятся найденные публичные каналы и группы.", color = TextSecondary, fontSize = 11.sp, lineHeight = 17.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                    Spacer(Modifier.height(16.dp))
+                    Text("CHANNELS  ·  GROUPS  ·  DISCUSSIONS", color = TextSecondary, fontSize = 8.sp, letterSpacing = 1.1.sp)
                 }
             }
         }
         Spacer(Modifier.height(10.dp))
-        Text("Social Radar  0.1.0-alpha  ·  Результаты поиска будут храниться на устройстве", color = RadarMuted, fontSize = 9.sp)
+        Text("Social Radar  ·  0.1.0 alpha", color = TextSecondary.copy(alpha = .65f), fontSize = 9.sp)
     }
 }
 
 @Composable
-private fun HistoryScreen(history: List<String>, onSelectSearch: () -> Unit) {
+private fun HistoryPage(history: List<String>, goSearch: () -> Unit) {
     Column(Modifier.fillMaxSize().padding(24.dp)) {
-        Text("ИСТОРИЯ", color = RadarMuted, fontSize = 9.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.5.sp)
-        Spacer(Modifier.height(5.dp))
-        Text("История запросов", color = RadarText, fontSize = 27.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.7).sp)
+        Text("ACTIVITY", color = Accent2, fontSize = 9.sp, letterSpacing = 1.5.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(7.dp))
+        Text("Search history", color = TextPrimary, fontSize = 28.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-.7).sp)
         Spacer(Modifier.height(20.dp))
         if (history.isEmpty()) {
-            EmptySection(
-                title = "Пока нет запросов",
-                description = "Все выполненные поисковые запросы будут собираться здесь.",
-                action = "Перейти к поиску",
-                onAction = onSelectSearch
-            )
+            EmptyCard("Nothing here yet", "Your recent queries will appear here on this device.", "Start exploring", goSearch)
         } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(history) { item ->
-                    Row(
-                        Modifier.fillMaxWidth()
-                            .background(RadarPanel, RoundedCornerShape(12.dp))
-                            .clickable(onClick = onSelectSearch)
-                            .padding(15.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Outlined.History, contentDescription = null, tint = RadarMuted, modifier = Modifier.size(17.dp))
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                items(history) { q ->
+                    Row(Modifier.fillMaxWidth().background(Surface1, RoundedCornerShape(15.dp)).clickable { goSearch() }.padding(15.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Outlined.History, null, tint = Accent, modifier = Modifier.size(17.dp))
                         Spacer(Modifier.width(12.dp))
-                        Text(item, color = RadarText, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        Text(q, color = TextPrimary, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     }
                 }
             }
@@ -433,67 +251,64 @@ private fun HistoryScreen(history: List<String>, onSelectSearch: () -> Unit) {
 }
 
 @Composable
-private fun EmptySection(title: String, description: String, action: String, onAction: () -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxWidth().background(RadarPanel, RoundedCornerShape(16.dp)).padding(24.dp),
-        horizontalAlignment = Alignment.Start
-    ) {
-        Text(title, color = RadarText, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-        Spacer(Modifier.height(6.dp))
-        Text(description, color = RadarMuted, fontSize = 12.sp, lineHeight = 18.sp)
+private fun EmptyCard(title: String, desc: String, action: String, onAction: () -> Unit) {
+    Column(Modifier.fillMaxWidth().background(Surface1, RoundedCornerShape(18.dp)).padding(22.dp)) {
+        Text(title, color = TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+        Spacer(Modifier.height(7.dp))
+        Text(desc, color = TextSecondary, fontSize = 12.sp, lineHeight = 18.sp)
         Spacer(Modifier.height(15.dp))
-        Text(action, color = RadarAccent, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable(onClick = onAction))
+        Row(Modifier.clickable { onAction() }, verticalAlignment = Alignment.CenterVertically) {
+            Text(action, color = Accent, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.width(5.dp))
+            Icon(Icons.Outlined.ArrowForward, null, tint = Accent, modifier = Modifier.size(14.dp))
+        }
     }
 }
 
 @Composable
-private fun SettingsScreen() {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(13.dp)
-    ) {
-        Text("ПАРАМЕТРЫ ПРИЛОЖЕНИЯ", color = RadarMuted, fontSize = 9.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.5.sp)
-        Text("Настройки", color = RadarText, fontSize = 27.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.7).sp)
-        Spacer(Modifier.height(3.dp))
-        Text("TELEGRAM", color = RadarMuted, fontSize = 9.sp, letterSpacing = 1.3.sp, fontWeight = FontWeight.SemiBold)
-        Surface(color = RadarPanel, shape = RoundedCornerShape(14.dp), border = androidx.compose.foundation.BorderStroke(1.dp, RadarLine)) {
-            Column(Modifier.fillMaxWidth().padding(16.dp)) {
+private fun SettingsPage() {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
+        Text("CONFIGURATION", color = Accent2, fontSize = 9.sp, letterSpacing = 1.5.sp, fontWeight = FontWeight.Bold)
+        Text("Settings", color = TextPrimary, fontSize = 28.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-.7).sp)
+        Spacer(Modifier.height(4.dp))
+        Text("TELEGRAM ACCOUNT", color = TextSecondary, fontSize = 9.sp, letterSpacing = 1.3.sp, fontWeight = FontWeight.SemiBold)
+        Surface(color = Surface1, shape = RoundedCornerShape(18.dp), border = androidx.compose.foundation.BorderStroke(1.dp, Border)) {
+            Column(Modifier.fillMaxWidth().padding(17.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Подключение аккаунта", color = RadarText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                    Spacer(Modifier.weight(1f))
-                    Surface(color = Color(0xFF342B20), shape = RoundedCornerShape(6.dp)) {
-                        Text("НЕ ПОДКЛЮЧЕНО", color = Color(0xFFD8B98D), fontSize = 8.sp, letterSpacing = 0.5.sp, modifier = Modifier.padding(horizontal = 7.dp, vertical = 5.dp))
+                    Box(Modifier.size(38.dp).background(Color(0xFF1A2E42), RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Outlined.Search, null, tint = Accent, modifier = Modifier.size(19.dp))
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("Telegram / MTProto", color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Account connection", color = TextSecondary, fontSize = 10.sp)
+                    }
+                    Surface(color = Color(0xFF332A1E), shape = RoundedCornerShape(7.dp)) {
+                        Text("OFFLINE", color = Color(0xFFE0B77E), fontSize = 8.sp, letterSpacing = .6.sp, modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp))
                     }
                 }
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    "Авторизация через MTProto / TDLib. Экран входа появится после интеграции нативной библиотеки Telegram.",
-                    color = RadarMuted,
-                    fontSize = 11.sp,
-                    lineHeight = 17.sp
-                )
+                Spacer(Modifier.height(13.dp))
+                Text("Native TDLib / MTProto client is not included in this build. No fake login is shown and your Telegram credentials are not collected.", color = TextSecondary, fontSize = 11.sp, lineHeight = 17.sp)
+                Spacer(Modifier.height(12.dp))
+                Text("Get API credentials ↗", color = Accent, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://my.telegram.org/apps"))) })
             }
         }
-        Spacer(Modifier.height(3.dp))
-        Text("ПОИСК", color = RadarMuted, fontSize = 9.sp, letterSpacing = 1.3.sp, fontWeight = FontWeight.SemiBold)
-        SettingsRow("Глубина исследования", "Максимальная")
-        SettingsRow("Типы результатов", "Все публичные")
-        SettingsRow("Языки расширения", "Русский · English")
-        SettingsRow("Хранение данных", "На устройстве")
-        Spacer(Modifier.height(8.dp))
-        HorizontalDivider(color = RadarLine)
-        Text("Social Radar · 0.1.0-alpha", color = RadarMuted, fontSize = 10.sp)
+        Text("SEARCH", color = TextSecondary, fontSize = 9.sp, letterSpacing = 1.3.sp, fontWeight = FontWeight.SemiBold)
+        SettingLine("Query expansion", "Russian + English")
+        SettingLine("Source scope", "Public communities")
+        SettingLine("Storage", "Local device")
+        Spacer(Modifier.height(7.dp))
+        HorizontalDivider(color = Border)
+        Text("Social Radar · 0.1.0-alpha", color = TextSecondary, fontSize = 10.sp)
     }
 }
 
 @Composable
-private fun SettingsRow(title: String, value: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(title, color = RadarText, fontSize = 12.sp)
+private fun SettingLine(label: String, value: String) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, color = TextPrimary, fontSize = 12.sp)
         Spacer(Modifier.weight(1f))
-        Text(value, color = RadarMuted, fontSize = 11.sp)
+        Text(value, color = TextSecondary, fontSize = 11.sp)
     }
 }
