@@ -71,6 +71,7 @@ private fun SocialRadar() {
     var history by rememberSaveable { mutableStateOf(emptyList<String>()) }
     val context = androidx.compose.ui.platform.LocalContext.current
     val session = remember { TelegramSession(context) }
+    LaunchedEffect(session) { if (session.apiId.isNotBlank()) session.connect() }
     val results by session.results.collectAsState()
     val auth by session.auth.collectAsState()
     val busy by session.busy.collectAsState()
@@ -292,7 +293,8 @@ private fun SettingsPage(session: TelegramSession, auth: RadarAuth, sessionMessa
     var credentialId by remember { mutableStateOf(session.apiId) }
     var credentialHash by remember { mutableStateOf(session.apiHash) }
     var authInput by remember { mutableStateOf("") }
-    var authDialogShown by remember { mutableStateOf(false) }\n    var lastAuthDialogState by remember { mutableStateOf("") }
+    var authDialogShown by remember { mutableStateOf(false) }
+    var lastAuthDialogState by remember { mutableStateOf("") }\n    var lastAuthDialogState by remember { mutableStateOf("") }
     Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
         Text("CONFIGURATION", color = Accent2, fontSize = 9.sp, letterSpacing = 1.5.sp, fontWeight = FontWeight.Bold)
         Text("Settings", color = TextPrimary, fontSize = 28.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-.7).sp)
@@ -340,7 +342,7 @@ private fun SettingsPage(session: TelegramSession, auth: RadarAuth, sessionMessa
         dismissButton = { TextButton(onClick = { showCredentials = false }) { Text("Отмена") } }
     )
     val needsAuthInput = auth.phoneRequired || auth.codeRequired || auth.passwordRequired
-    if (needsAuthInput && !authDialogShown) { authDialogShown = true; authInput = "" }
+    LaunchedEffect(auth.label) { if (needsAuthInput && lastAuthDialogState != auth.label) { lastAuthDialogState = auth.label; authDialogShown = true; authInput = "" } }
     if (needsAuthInput) AlertDialog(
         onDismissRequest = { authDialogShown = false },
         title = { Text(if (auth.phoneRequired) "Номер телефона" else if (auth.codeRequired) "Код Telegram" else "Пароль 2FA") },
