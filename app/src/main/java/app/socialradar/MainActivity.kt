@@ -73,6 +73,7 @@ private fun SocialRadar() {
     val context = androidx.compose.ui.platform.LocalContext.current
     val session = remember { TelegramSession(context) }
     LaunchedEffect(session) { if (session.apiId.isNotBlank()) session.connect() }
+    DisposableEffect(session) { onDispose { session.close() } }
     val results by session.results.collectAsState()
     val auth by session.auth.collectAsState()
     val busy by session.busy.collectAsState()
