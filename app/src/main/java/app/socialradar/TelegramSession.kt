@@ -107,7 +107,8 @@ class TelegramSession(private val context: Context) {
                 val merged = linkedMapOf<Long, RadarChat>()
                 for (variant in variants.take(5)) {
                     val response = td.send(TdApi.SearchPublicChats(variant, null))
-                    response.chats.forEach { chat ->
+                    response.chatIds.take(30).forEach { chatId ->
+                        val chat = td.send(TdApi.GetChat(chatId))
                         val kind = when (chat.type) {
                             is TdApi.ChatTypeSupergroup -> "Группа / канал"
                             is TdApi.ChatTypeBasicGroup -> "Группа"
