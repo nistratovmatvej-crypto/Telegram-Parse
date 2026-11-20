@@ -96,10 +96,7 @@ class TelegramSession(context: Context) {
         scope.launch {
             try {
                 val variants = linkedSetOf(q)
-                val lower = q.lowercase()
-                if (lower.any { it in "абвгдежзийклмнопрстуфхцчшщьыэюя" }) {
-                    variants.add(q.replace(" ", ""))
-                }
+                q.split(Regex("[\\s,;]+")).filter { it.length >= 3 }.take(4).forEach { variants.add(it) }
                 val merged = linkedMapOf<Long, RadarChat>()
                 for (variant in variants.take(5)) {
                     val response = td.send(TdApi.SearchPublicChats(variant))
@@ -112,7 +109,7 @@ class TelegramSession(context: Context) {
                         merged[chat.id] = RadarChat(chat.id, chat.title, kind)
                     }
                 }
-                _results.value = merged.values.sortedBy { if (it.title.contains(q, true)) 0 else 1 }.take(100)
+                _results.value = merged.values.sortedByDescending { chat -> q.split(Regex("[\\s,;]+")).count { it.length >= 2 && chat.title.contains(it, true) } }.take(100)
                 _message.value = "Найдено публичных чатов: ${_results.value.size}"
             } catch (e: Exception) { _message.value = "Ошибка поиска: ${e.message ?: "неизвестная ошибка"}" }
             finally { _busy.value = false }
