@@ -12,7 +12,7 @@ import kotlinx.coroutines.launch
 import org.drinkless.tdlib.TdApi
 
 data class RadarChat(val id: Long, val title: String, val type: String)
-data class RadarAuth(val label: String = "Не подключено", val ready: Boolean = false, val codeRequired: Boolean = false, val passwordRequired: Boolean = false, val phoneRequired: Boolean = false)
+data class RadarAuth(val label: String = "Не подключено", val ready: Boolean = false, val codeRequired: Boolean = false, val passwordRequired: Boolean = false, val phoneRequired: Boolean = false, val emailRequired: Boolean = false, val emailCodeRequired: Boolean = false, val registrationRequired: Boolean = false, val otherDeviceLink: String = "")
 
 class TelegramSession(private val context: Context) {
     private val prefs = context.getSharedPreferences("telegram_session_config", Context.MODE_PRIVATE)
@@ -50,7 +50,7 @@ class TelegramSession(private val context: Context) {
                         when (val state = update.authorizationState) {
                             is TdApi.AuthorizationStateWaitPhoneNumber -> _auth.value = RadarAuth("Введите номер телефона", phoneRequired = true)
                             is TdApi.AuthorizationStateWaitCode -> _auth.value = RadarAuth("Код Telegram отправлен", codeRequired = true)
-                            is TdApi.AuthorizationStateWaitPassword -> _auth.value = RadarAuth("Нужен пароль двухэтапной проверки", passwordRequired = true)
+                            is TdApi.AuthorizationStateWaitPassword -> _auth.value = RadarAuth("Нужен пароль двухэтапной проверки", passwordRequired = true)\n                            is TdApi.AuthorizationStateWaitEmailAddress -> _auth.value = RadarAuth("Введите email", emailRequired = true)\n                            is TdApi.AuthorizationStateWaitEmailCode -> _auth.value = RadarAuth("Код отправлен на email", emailCodeRequired = true)\n                            is TdApi.AuthorizationStateWaitRegistration -> _auth.value = RadarAuth("Регистрация Telegram", registrationRequired = true)\n                            is TdApi.AuthorizationStateWaitOtherDeviceConfirmation -> _auth.value = RadarAuth("Подтвердите вход на другом устройстве", otherDeviceLink = state.link)
                             is TdApi.AuthorizationStateReady -> { _auth.value = RadarAuth("Подключено", ready = true); _message.value = "Telegram подключён." }
                             is TdApi.AuthorizationStateLoggingOut -> _auth.value = RadarAuth("Выход…")
                             is TdApi.AuthorizationStateClosing -> _auth.value = RadarAuth("Закрытие…")
@@ -72,7 +72,7 @@ class TelegramSession(private val context: Context) {
 
     fun submitPhone(phone: String) { request(TdApi.SetAuthenticationPhoneNumber(phone.trim(), null)) }
     fun submitCode(code: String) { request(TdApi.CheckAuthenticationCode(code.trim())) }
-    fun submitPassword(password: String) { request(TdApi.CheckAuthenticationPassword(password)) }
+    fun submitPassword(password: String) { request(TdApi.CheckAuthenticationPassword(password)) }\n    fun submitEmail(email: String) { request(TdApi.SetAuthenticationEmailAddress(email.trim())) }\n    fun submitEmailCode(code: String) { request(TdApi.CheckAuthenticationEmailCode(TdApi.EmailAddressAuthenticationCode(code.trim()))) }\n    fun register(firstName: String) { request(TdApi.RegisterUser(firstName.trim(), "", false)) }
 
     private fun request(fn: TdApi.Function<*>) {
         val td = client ?: run { _message.value = "TDLib не запущена."; return }
