@@ -321,7 +321,7 @@ private fun SettingsPage(session: TelegramSession, auth: RadarAuth, sessionMessa
             }
         }
         Text("SEARCH", color = TextSecondary, fontSize = 9.sp, letterSpacing = 1.3.sp, fontWeight = FontWeight.SemiBold)
-        SettingLine("Query expansion", "RU / EN variants")
+        SettingLine("Search strategy", "Phrase + keywords")
         SettingLine("Source scope", "Public communities")
         SettingLine("Storage", "Local device")
         Spacer(Modifier.height(7.dp))
