@@ -12,7 +12,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.cancel
 import org.drinkless.tdlib.TdApi
 
-data class RadarChat(val id: Long, val title: String, val type: String)
+data class RadarChat(val id: Long, val title: String, val type: String, val username: String = "")
 data class RadarAuth(val label: String = "Не подключено", val ready: Boolean = false, val codeRequired: Boolean = false, val passwordRequired: Boolean = false, val phoneRequired: Boolean = false, val emailRequired: Boolean = false, val emailCodeRequired: Boolean = false, val registrationRequired: Boolean = false, val otherDeviceLink: String = "")
 
 class TelegramSession(private val context: Context) {
@@ -115,7 +115,13 @@ class TelegramSession(private val context: Context) {
                             is TdApi.ChatTypeBasicGroup -> "Группа"
                             else -> "Публичный чат"
                         }
-                        merged[chat.id] = RadarChat(chat.id, chat.title, kind)
+                        val username = if (chat.type is TdApi.ChatTypeSupergroup) {
+                            try {
+                                val supergroup = td.send(TdApi.GetSupergroup(chat.type.supergroupId))
+                                supergroup.usernames?.activeUsernames?.firstOrNull().orEmpty()
+                            } catch (_: Exception) { "" }
+                        } else ""
+                        merged[chat.id] = RadarChat(chat.id, chat.title, kind, username)
                     }
                 }
                 _results.value = merged.values.sortedByDescending { chat -> q.split(Regex("[\\s,;]+")).count { it.length >= 2 && chat.title.contains(it, true) } }.take(100)
