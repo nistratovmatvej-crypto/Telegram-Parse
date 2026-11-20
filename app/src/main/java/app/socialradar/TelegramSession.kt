@@ -38,7 +38,6 @@ data class RadarAuth(
 
 class TelegramSession(private val context: Context) {
     private val prefs = context.getSharedPreferences("telegram_session_config", Context.MODE_PRIVATE)
-    init { migrateLegacyCredentials() }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val planner = SearchQueryPlanner()
     private var client: TdClient? = null
@@ -50,6 +49,7 @@ class TelegramSession(private val context: Context) {
     val busy: StateFlow<Boolean> = _busy
     private val _message = MutableStateFlow("")
     val message: StateFlow<String> = _message
+    init { migrateLegacyCredentials() }
     val apiId: String get() = CredentialVault.decrypt(prefs.getString("api_id_encrypted", null)) ?: (prefs.getString("api_id", "") ?: "")
     val apiHash: String get() = CredentialVault.decrypt(prefs.getString("api_hash_encrypted", null)) ?: (prefs.getString("api_hash", "") ?: "")
 
