@@ -110,14 +110,15 @@ class TelegramSession(private val context: Context) {
                     val response = td.send(TdApi.SearchPublicChats(variant, null))
                     response.chatIds.take(10).forEach { chatId ->
                         val chat = td.send(TdApi.GetChat(chatId))
-                        val kind = when (chat.type) {
+                        val chatType = chat.type
+                        val kind = when (chatType) {
                             is TdApi.ChatTypeSupergroup -> "Группа / канал"
                             is TdApi.ChatTypeBasicGroup -> "Группа"
                             else -> "Публичный чат"
                         }
-                        val username = if (chat.type is TdApi.ChatTypeSupergroup) {
+                        val username = if (chatType is TdApi.ChatTypeSupergroup) {
                             try {
-                                val supergroup = td.send(TdApi.GetSupergroup(chat.type.supergroupId))
+                                val supergroup = td.send(TdApi.GetSupergroup(chatType.supergroupId))
                                 supergroup.usernames?.activeUsernames?.firstOrNull().orEmpty()
                             } catch (_: Exception) { "" }
                         } else ""
