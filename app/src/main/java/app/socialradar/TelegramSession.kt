@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.cancel
 import org.drinkless.tdlib.TdApi
 
 data class RadarChat(val id: Long, val title: String, val type: String)
@@ -124,7 +125,7 @@ class TelegramSession(private val context: Context) {
         }
     }
 
-    fun close() { client?.close(); client = null }
+    fun close() { client?.close(); client = null; scope.cancel() }
 
     fun logout() {
         val td = client ?: return
