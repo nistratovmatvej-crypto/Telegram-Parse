@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
@@ -208,7 +209,7 @@ private fun SearchPage(onSave: (String) -> Unit, session: TelegramSession, resul
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Results", color = TextPrimary, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.width(8.dp))
-            Surface(color = Surface3, shape = RoundedCornerShape(7.dp)) { Text("—", color = TextSecondary, fontSize = 10.sp, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) }
+            Surface(color = Surface3, shape = RoundedCornerShape(7.dp)) { Text(results.size.toString(), color = TextSecondary, fontSize = 10.sp, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) }
             Spacer(Modifier.weight(1f))
             Text("LIVE SEARCH", color = TextSecondary, fontSize = 9.sp, letterSpacing = 1.sp)
         }
@@ -346,7 +347,7 @@ private fun SettingsPage(session: TelegramSession, auth: RadarAuth, sessionMessa
     if (needsAuthInput && authDialogShown) AlertDialog(
         onDismissRequest = { authDialogShown = false },
         title = { Text(if (auth.phoneRequired) "Номер телефона" else if (auth.codeRequired) "Код Telegram" else if (auth.passwordRequired) "Пароль 2FA" else if (auth.emailRequired) "Email" else if (auth.emailCodeRequired) "Email-код" else "Ваше имя") },
-        text = { OutlinedTextField(authInput, { authInput = it }, label = { Text(if (auth.phoneRequired) "+номер телефона" else if (auth.codeRequired) "Код из Telegram" else if (auth.passwordRequired) "Пароль 2FA" else if (auth.emailRequired) "Email" else if (auth.emailCodeRequired) "Код из email" else "Имя") }, singleLine = true) },
+        text = { OutlinedTextField(authInput, { authInput = it }, label = { Text(if (auth.phoneRequired) "+номер телефона" else if (auth.codeRequired) "Код из Telegram" else if (auth.passwordRequired) "Пароль 2FA" else if (auth.emailRequired) "Email" else if (auth.emailCodeRequired) "Код из email" else "Имя") }, visualTransformation = if (auth.passwordRequired) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None, singleLine = true) },
         confirmButton = { TextButton(onClick = { if (auth.phoneRequired) session.submitPhone(authInput) else if (auth.codeRequired) session.submitCode(authInput) else if (auth.passwordRequired) session.submitPassword(authInput) else if (auth.emailRequired) session.submitEmail(authInput) else if (auth.emailCodeRequired) session.submitEmailCode(authInput) else session.register(authInput); authDialogShown = true }) { Text("Отправить") } },
         dismissButton = { TextButton(onClick = { authDialogShown = false }) { Text("Позже") } }
     )
